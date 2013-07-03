@@ -214,6 +214,7 @@ public class PeriodicRotatingFileHandler extends FileHandler {
                 calendar.clear(Calendar.DAY_OF_WEEK_IN_MONTH);
             case DAY:
                 calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.AM_PM, 0);
             case HALF_DAY:
                 calendar.set(Calendar.HOUR, 0);
             case HOUR:
