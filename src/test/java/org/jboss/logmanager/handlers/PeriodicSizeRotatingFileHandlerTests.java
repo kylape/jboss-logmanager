@@ -169,8 +169,6 @@ public class PeriodicSizeRotatingFileHandlerTests extends AbstractHandlerTest {
             for (; j <= i+2; j++) {
                 if (j >= supportedPeriods.size()) break;
                 int logMessagePeriod = supportedPeriods.get(j);
-                System.out.println("Handler: " + periodFormatMap.get(handlerPeriod).toPattern() + 
-                                   " ; Message: " + periodFormatMap.get(logMessagePeriod).toPattern());
                 testPeriodicAndSizeRotate0(handlerPeriod, logMessagePeriod, true);
                 testPeriodicAndSizeRotate0(handlerPeriod, logMessagePeriod, false);
             }
@@ -237,34 +235,95 @@ public class PeriodicSizeRotatingFileHandlerTests extends AbstractHandlerTest {
             rotatedFile2 = new File(BASE_LOG_DIR, FILENAME + extension);
         }
 
-        String patterns = "Handler: " + periodFormatMap.get(handlerPeriod).toPattern() + " ; " + 
-                           "Message: " + periodFormatMap.get(logMessagePeriod).toPattern() + " ; " +
-                           "testSize=" + testSize;
-
         Assert.assertTrue(logFile.exists());
         Assert.assertTrue(logFile.length() > 0L);
 
-        // If the time period added to the log message is greater than the time period specified
-        // for file rotation, then we should expect the log to have rotated
-        // The bigger the time period, the smaller the int
         try {
-            if (logMessagePeriod <= handlerPeriod || testSize) {
-                String message = "Expected log rotation, but it didn't happen\n";
-                Assert.assertTrue(message + patterns + "\n" + rotatedFile1.getPath(), rotatedFile1.exists());
-                Assert.assertTrue(message + patterns, rotatedFile2.exists());
+            ErrorCreator errorCreator = new ErrorCreator(handlerPeriod, logMessagePeriod, testSize);
+            if (shouldRotate(logMessagePeriod, handlerPeriod, testSize)) {
+                Assert.assertTrue(errorCreator.create(true, rotatedFile1), rotatedFile1.exists());
+                Assert.assertTrue(errorCreator.create(true, rotatedFile2), rotatedFile2.exists());
                 Assert.assertTrue(rotatedFile1.length() > 0L);
                 Assert.assertTrue(rotatedFile2.length() > 0L);
             } else {
-                String message = "Expected NO log rotation, but it happened anyways\n";
-                Assert.assertFalse(message + patterns + "\n" + rotatedFile1.getPath(), rotatedFile1.exists());
-                Assert.assertFalse(message + patterns, rotatedFile2.exists());
+                Assert.assertFalse(errorCreator.create(false, rotatedFile1), rotatedFile1.exists());
+                Assert.assertFalse(errorCreator.create(false, rotatedFile2), rotatedFile2.exists());
                 Assert.assertFalse(rotatedFile1.length() > 0L);
                 Assert.assertFalse(rotatedFile2.length() > 0L);
             }
         } finally {
-            logFile.delete();
-            rotatedFile1.delete();
-            rotatedFile2.delete();
+            for (String logFile : BASE_LOG_DIR.list()) {
+                new File(BASE_LOG_DIR + File.separator + logFile).delete();
+            }
+        }
+    }
+
+    private boolean shouldRotate(int logMessagePeriod, int handlerPeriod, boolean testSize) {
+        if (testSize) {
+          return true;
+        }
+
+        // If the time period added to the log message is greater than the time period specified
+        // for file rotation, then we should expect the log to have rotated
+        // **The bigger the time period, the smaller the int**
+
+        if (logMessagePeriod > handlerPeriod) {
+            Calendar cal = Calendar.getInstance();
+            if (isPeriodOneLess(logMessagePeriod, handlerPeriod) &&
+                cal.get(logMessagePeriod) == cal.getActualMaximum(logMessagePeriod)) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return true;
+        }
+    }
+
+    // This is really tricky.  If the test suite is run when the log message
+    // period is at is cal.getActualMaximum(), then when you increment by one,
+    // you should expect a rollover, but if you simply check to see if the log
+    // message period is less than the handler period, this won't be the case.
+    // To address this, you need to know if the log message period rollover
+    // will affect whether or not the log will actually roll over.  That's only
+    // the case if the log message's period is logically one smaller than the
+    // handler's period.
+    private static boolean isPeriodOneLess(int period1, int period2) {
+        return (supportedPeriods.indexOf(period1) - supportedPeriods.indexOf(period2)) == 1;
+    }
+
+    private class ErrorCreator {
+        private int handlerPeriod, logMessagePeriod;
+        private boolean testSize;
+
+        public ErrorCreator(int handlerPeriod, int logMessagePeriod, boolean testSize) {
+            this.handlerPeriod = handlerPeriod;
+            this.logMessagePeriod = logMessagePeriod;
+            this.testSize = testSize;
+        }
+
+        public String create(boolean expectRotation, File log) throws Exception {
+              StringBuilder builder = new StringBuilder();
+              if (expectRotation) {
+                  builder.append("Expected log rotation, but it didn't happen\n");
+              } else {
+                  builder.append("Expected NO log rotation, but it happened anyways\n");
+              }
+
+              builder.append("Handler: " + periodFormatMap.get(handlerPeriod).toPattern());
+              builder.append(" ; "); 
+              builder.append("Message: " + periodFormatMap.get(logMessagePeriod).toPattern());
+              builder.append(" ; ");
+              builder.append("testSize=" + testSize);
+
+              builder.append("\nChecking for log file here: ");
+              builder.append(log.getPath() + "\n");
+              builder.append("List of log files:\n");
+              for (String f : BASE_LOG_DIR.list()) {
+                  builder.append("\t" + f + "\n");
+              }
+              builder.append("-- End of listing --");
+              return builder.toString();
         }
     }
 }
