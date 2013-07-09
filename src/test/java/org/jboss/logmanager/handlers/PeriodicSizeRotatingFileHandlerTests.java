@@ -52,7 +52,7 @@ public class PeriodicSizeRotatingFileHandlerTests extends AbstractHandlerTest {
         supportedPeriods.add(Calendar.WEEK_OF_YEAR);
         supportedPeriods.add(Calendar.DAY_OF_MONTH);
         supportedPeriods.add(Calendar.AM_PM);
-        supportedPeriods.add(Calendar.HOUR);
+        supportedPeriods.add(Calendar.HOUR_OF_DAY);
         supportedPeriods.add(Calendar.MINUTE);
 
         //There are additional formats that could be tested here
@@ -61,7 +61,7 @@ public class PeriodicSizeRotatingFileHandlerTests extends AbstractHandlerTest {
         periodFormatMap.put(Calendar.WEEK_OF_YEAR, new SimpleDateFormat("yyyy-ww"));
         periodFormatMap.put(Calendar.DAY_OF_MONTH, new SimpleDateFormat("yyyy-MM-dd"));
         periodFormatMap.put(Calendar.AM_PM, new SimpleDateFormat("yyyy-MM-dda"));
-        periodFormatMap.put(Calendar.HOUR, new SimpleDateFormat("yyyy-MM-dd-HH"));
+        periodFormatMap.put(Calendar.HOUR_OF_DAY, new SimpleDateFormat("yyyy-MM-dd-HH"));
         periodFormatMap.put(Calendar.MINUTE, new SimpleDateFormat("yyyy-MM-dd-HH-mm"));
     }
 
