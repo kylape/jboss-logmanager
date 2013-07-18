@@ -83,39 +83,25 @@ public class SyslogHandlerTests {
         handler.setSyslogType(SyslogType.RFC3164);
         final StringBuffer buffer = new StringBuffer();
         final CountDownLatch publishLatch = new CountDownLatch(1);
-        final CountDownLatch receiveLatch = new CountDownLatch(1);
         final CountDownLatch bufferLatch  = new CountDownLatch(1);
-        new Thread(new Runnable() {
-            public void run() {
-                try {
-                    publishLatch.await();
-                    handler.publish(logRecord);
-                    Thread.sleep(5);
-                    receiveLatch.countDown();
-                } catch (InterruptedException ie) {
-                    // nothing
-                }
-            }
-        }).start();
         new Thread(new Runnable() {
             public void run() {
                 try {
                     DatagramSocket dgSocket = new DatagramSocket(SYSLOG_PORT, InetAddress.getLocalHost());
                     DatagramPacket dgPacket = new DatagramPacket(new byte[1024], 0, 1024);
-                    receiveLatch.await();
+                    publishLatch.countDown();
                     dgSocket.receive(dgPacket);
                     String dgMessage = new String(dgPacket.getData(), dgPacket.getOffset(), dgPacket.getLength());
                     buffer.append(dgMessage);
                     bufferLatch.countDown();
-                } catch (InterruptedException ie) {
-                    // nothing
                 } catch (IOException ioe) {
                     // nothing 
                 }
             }
         }).start();
         try {
-            publishLatch.countDown();
+            publishLatch.await();
+            handler.publish(logRecord);
             bufferLatch.await();
         } catch (InterruptedException ie) {
             // nothing
