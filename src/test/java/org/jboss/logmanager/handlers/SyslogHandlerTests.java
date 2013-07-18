@@ -30,6 +30,11 @@ import org.jboss.logmanager.ExtLogRecord;
 import org.jboss.logmanager.handlers.SyslogHandler.Facility;
 import org.jboss.logmanager.handlers.SyslogHandler.SyslogType;
 import org.testng.annotations.Test;
+import java.net.DatagramSocket;
+import java.net.DatagramPacket;
+import java.util.concurrent.CountDownLatch;
+import java.net.InetAddress;
+import java.io.IOException;
 
 /**
  * @author <a href="mailto:jperkins@redhat.com">James R. Perkins</a>
@@ -38,6 +43,7 @@ import org.testng.annotations.Test;
 public class SyslogHandlerTests {
 
     private static final String MSG = "This is a test message";
+    private static final String MULTIBYTE_MSG = "Thïs ïs a test message wïth a multïbyte char for every ï.";
 
     public void testRFC5424Format() throws Exception {
         final Calendar cal = getCalendar();
@@ -65,6 +71,60 @@ public class SyslogHandlerTests {
         formattedMessage = SyslogType.RFC3164.format(createRecord(cal, MSG), Facility.USER_LEVEL, "test", "1234", null);
         expectedMessage = "<14>Jan 31 04:39:22 test [1234]: " + MSG;
         Assert.assertEquals(expectedMessage, formattedMessage);
+    }
+
+    public void testMultibyteChar() throws Exception {
+        final Calendar cal = getCalendar();
+        final ExtLogRecord logRecord = createRecord(cal, MULTIBYTE_MSG);
+        final String formattedMessage = SyslogType.RFC3164.format(logRecord, Facility.USER_LEVEL, "test", "1234", "java");
+        final int SYSLOG_PORT = 44483;
+        final String SYSLOG_HOST = InetAddress.getLocalHost().getHostName();
+        final SyslogHandler handler = new SyslogHandler(SYSLOG_HOST, SYSLOG_PORT);
+        handler.setSyslogType(SyslogType.RFC3164);
+        final StringBuffer buffer = new StringBuffer();
+        final CountDownLatch publishLatch = new CountDownLatch(1);
+        final CountDownLatch receiveLatch = new CountDownLatch(1);
+        final CountDownLatch bufferLatch  = new CountDownLatch(1);
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    publishLatch.await();
+                    handler.publish(logRecord);
+                    Thread.sleep(5);
+                    receiveLatch.countDown();
+                } catch (InterruptedException ie) {
+                    // nothing
+                }
+            }
+        }).start();
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    DatagramSocket dgSocket = new DatagramSocket(SYSLOG_PORT, InetAddress.getLocalHost());
+                    DatagramPacket dgPacket = new DatagramPacket(new byte[1024], 0, 1024);
+                    receiveLatch.await();
+                    dgSocket.receive(dgPacket);
+                    String dgMessage = new String(dgPacket.getData(), dgPacket.getOffset(), dgPacket.getLength());
+                    buffer.append(dgMessage);
+                    bufferLatch.countDown();
+                } catch (InterruptedException ie) {
+                    // nothing
+                } catch (IOException ioe) {
+                    // nothing 
+                }
+            }
+        }).start();
+        try {
+            publishLatch.countDown();
+            bufferLatch.await();
+        } catch (InterruptedException ie) {
+            // nothing
+        }
+        String expectedMessage = "<14>Jan  9 04:39:22 test java[1234]: " + MULTIBYTE_MSG;
+        String expectedMessageContent = expectedMessage.substring(expectedMessage.indexOf(": "));
+        String actualMessageContent   = buffer.toString();
+        actualMessageContent = actualMessageContent.substring(actualMessageContent.indexOf(": "));
+        Assert.assertEquals(expectedMessageContent, actualMessageContent);
     }
 
     private static ExtLogRecord createRecord(final Calendar cal, final String message) {
