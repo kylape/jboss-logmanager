@@ -22,7 +22,12 @@
 
 package org.jboss.logmanager.handlers;
 
+import java.io.IOException;
+import java.net.DatagramSocket;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.util.Calendar;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 
 import junit.framework.Assert;
@@ -30,11 +35,6 @@ import org.jboss.logmanager.ExtLogRecord;
 import org.jboss.logmanager.handlers.SyslogHandler.Facility;
 import org.jboss.logmanager.handlers.SyslogHandler.SyslogType;
 import org.testng.annotations.Test;
-import java.net.DatagramSocket;
-import java.net.DatagramPacket;
-import java.util.concurrent.CountDownLatch;
-import java.net.InetAddress;
-import java.io.IOException;
 
 /**
  * @author <a href="mailto:jperkins@redhat.com">James R. Perkins</a>
