@@ -487,7 +487,8 @@ public class SyslogHandler extends ExtHandler {
             try {
                 final String message = syslogType.format(record, facility, hostname, pid, appName);
                 // TODO (jrp) allow TCP and other types
-                final DatagramPacket dp = new DatagramPacket(message.getBytes(), message.length(), serverAddress, port);
+                byte[] content = message.getBytes();
+                final DatagramPacket dp = new DatagramPacket(content, content.length, serverAddress, port);
                 datagramSocket.send(dp);
             } catch (IOException e) {
                 reportError("Could not write to syslog", e, ErrorManager.WRITE_FAILURE);
